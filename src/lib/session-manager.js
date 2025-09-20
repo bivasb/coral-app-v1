@@ -205,6 +205,7 @@ class SessionManager extends EventEmitter {
 
       case 'agent_list':
         this.agents = message.sessionAgents || [];
+        console.log('Agents list updated:', this.agents.map(a => `${a.id} (${a.state})`));
         this.emit('agents-updated', this.agents);
         break;
 
@@ -273,21 +274,6 @@ class SessionManager extends EventEmitter {
     }
   }
 
-  createThread(name, participants) {
-    if (!this.connected || !this.ws) {
-      console.error('WebSocket not connected');
-      return;
-    }
-
-    const message = {
-      type: 'create_thread',
-      name: name,
-      participants: participants
-    };
-
-    console.log('Creating thread:', message);
-    this.ws.send(JSON.stringify(message));
-  }
 
   sendMessage(threadId, content) {
     if (!this.connected || !this.ws) {

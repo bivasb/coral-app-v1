@@ -5,8 +5,8 @@ class CoralApp {
         this.connected = false;
         this.currentThread = null;
         this.agents = [];
-        this.threads = [];
         this.activeQuestions = new Map();
+        this.conversationStarted = false;
         
         this.initializeUI();
         this.setupEventListeners();
@@ -16,51 +16,27 @@ class CoralApp {
         this.connectionStatus = document.getElementById('connection-status');
         this.connectBtn = document.getElementById('connect-btn');
         this.disconnectBtn = document.getElementById('disconnect-btn');
-        this.createThreadBtn = document.getElementById('create-thread-btn');
+        this.startConversationBtn = document.getElementById('start-conversation-btn');
         this.agentsList = document.getElementById('agents-list');
-        this.threadsList = document.getElementById('threads-list');
         this.messagesContainer = document.getElementById('messages-container');
         this.messageInput = document.getElementById('message-input');
         this.sendBtn = document.getElementById('send-btn');
         this.questionsContainer = document.getElementById('questions-container');
         this.activityLog = document.getElementById('activity-log');
+        this.agentLog = document.getElementById('agent-log');
         this.agentCount = document.getElementById('agent-count');
-        this.threadCount = document.getElementById('thread-count');
         this.currentThreadDisplay = document.getElementById('current-thread');
-        
-        // Modal elements
-        this.threadModal = document.getElementById('thread-modal');
-        this.threadNameInput = document.getElementById('thread-name-input');
-        this.threadModalCancel = document.getElementById('thread-modal-cancel');
-        this.threadModalCreate = document.getElementById('thread-modal-create');
     }
 
     setupEventListeners() {
         this.connectBtn.addEventListener('click', () => this.connect());
         this.disconnectBtn.addEventListener('click', () => this.disconnect());
-        this.createThreadBtn.addEventListener('click', () => this.showCreateThreadModal());
+        this.startConversationBtn.addEventListener('click', () => this.startNewConversation());
         this.sendBtn.addEventListener('click', () => this.sendMessage());
         
         this.messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMessage();
-            }
-        });
-
-        // Modal event listeners
-        this.threadModalCancel.addEventListener('click', () => this.hideCreateThreadModal());
-        this.threadModalCreate.addEventListener('click', () => this.handleCreateThread());
-        
-        this.threadNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.handleCreateThread();
-            }
-        });
-
-        // Close modal when clicking outside
-        this.threadModal.addEventListener('click', (e) => {
-            if (e.target === this.threadModal) {
-                this.hideCreateThreadModal();
             }
         });
     }
@@ -91,17 +67,13 @@ class CoralApp {
             this.agents = agents;
             this.updateAgentsList();
             this.log(`Agents updated: ${agents.length} agents`, 'info');
-        });
-
-        this.socket.on('threads-updated', (threads) => {
-            this.threads = threads;
-            this.updateThreadsList();
-            this.log(`Threads updated: ${threads.length} threads`, 'info');
+            this.logAgent(`Agents connected: ${agents.map(a => a.id).join(', ')}`);
         });
 
         this.socket.on('message-received', (data) => {
             this.addMessage(data.message, 'agent');
             this.log('Message received from agent', 'info');
+            this.logAgent(`Agent response: ${data.message.content.substring(0, 100)}...`);
         });
 
         this.socket.on('agent-question', (question) => {
@@ -149,7 +121,7 @@ class CoralApp {
         this.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
         this.connectBtn.disabled = connected;
         this.disconnectBtn.disabled = !connected;
-        this.createThreadBtn.disabled = !connected;
+        this.startConversationBtn.disabled = !connected;
     }
 
     updateAgentsList() {
@@ -175,103 +147,28 @@ class CoralApp {
         `).join('');
     }
 
-    updateThreadsList() {
-        this.threadCount.textContent = this.threads.length;
-        
-        if (this.threads.length === 0) {
-            this.threadsList.innerHTML = `
-                <p>No threads available.</p>
-                <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn" onclick="app.startNewConversation()" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 600;">
-                        🚀 Start New Conversation
-                    </button>
-                    <p style="font-size: 11px; color: #666; margin-top: 8px;">
-                        Click to begin chatting with agents
-                    </p>
-                </div>
-            `;
-            return;
-        }
 
-        this.threadsList.innerHTML = this.threads.map(thread => `
-            <div class="thread-item ${this.currentThread?.id === thread.id ? 'active' : ''}" 
-                 data-thread-id="${thread.id}">
-                <strong>${thread.name}</strong>
-                <div style="font-size: 12px; color: #666;">
-                    Creator: ${thread.creatorId}
-                </div>
-                ${thread.summary ? `<div style="font-size: 12px; margin-top: 5px;">${thread.summary}</div>` : ''}
-            </div>
-        `).join('');
-
-        // Add click listeners to thread items
-        this.threadsList.querySelectorAll('.thread-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const threadId = item.dataset.threadId;
-                this.selectThread(threadId);
-            });
-        });
-    }
-
-    showCreateThreadModal() {
-        if (!this.connected || !this.socket) {
+    startNewConversation() {
+        if (!this.connected) {
             this.log('Not connected to server', 'error');
             return;
         }
 
-        this.threadModal.classList.add('show');
-        this.threadNameInput.focus();
-        this.threadNameInput.select();
-    }
-
-    hideCreateThreadModal() {
-        this.threadModal.classList.remove('show');
-    }
-
-    handleCreateThread() {
-        const threadName = this.threadNameInput.value.trim();
-        if (!threadName) {
-            this.threadNameInput.focus();
-            return;
-        }
-
-        this.socket.emit('create-thread', {
-            name: threadName,
-            participants: ['user', 'interface', 'debugger']
-        });
-
-        this.log(`Creating thread: ${threadName}`, 'info');
-        this.hideCreateThreadModal();
-        
-        // Reset the input for next time
-        this.threadNameInput.value = 'New Conversation';
-    }
-
-    startNewConversation() {
-        // Enable chat without waiting for thread creation
+        this.conversationStarted = true;
         this.currentThread = { id: 'new', name: 'New Conversation' };
-        this.currentThreadDisplay.textContent = '- New Conversation';
+        this.currentThreadDisplay.textContent = '- Active';
         this.messageInput.disabled = false;
         this.sendBtn.disabled = false;
+        this.startConversationBtn.disabled = true;
         
         // Update messages container
         this.messagesContainer.innerHTML = `
-            <p class="message system">Start typing your message below. A thread will be created automatically when you send your first message.</p>
+            <p class="message system">Conversation started! Type your message below to chat with agents.</p>
         `;
         
         this.messageInput.focus();
-        this.log('Ready to start new conversation', 'info');
-    }
-
-    selectThread(threadId) {
-        this.currentThread = this.threads.find(t => t.id === threadId);
-        if (this.currentThread) {
-            this.currentThreadDisplay.textContent = `- ${this.currentThread.name}`;
-            this.messageInput.disabled = false;
-            this.sendBtn.disabled = false;
-            this.updateThreadsList(); // Refresh to show active state
-            this.log(`Selected thread: ${this.currentThread.name}`, 'info');
-        }
+        this.log('Conversation started', 'success');
+        this.logAgent('Conversation session initiated by user');
     }
 
     sendMessage() {
@@ -377,19 +274,31 @@ class CoralApp {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
 
+    logAgent(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry log-${type}`;
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        
+        this.agentLog.appendChild(logEntry);
+        this.agentLog.scrollTop = this.agentLog.scrollHeight;
+        
+        console.log(`[AGENT-${type.toUpperCase()}] ${message}`);
+    }
+
     reset() {
         this.agents = [];
-        this.threads = [];
         this.currentThread = null;
+        this.conversationStarted = false;
         this.activeQuestions.clear();
         
         this.updateAgentsList();
-        this.updateThreadsList();
-        this.messagesContainer.innerHTML = '<p class="message system">Select a thread to start chatting</p>';
+        this.messagesContainer.innerHTML = '<p class="message system">Click "Start New Conversation" to begin chatting</p>';
         this.questionsContainer.innerHTML = '';
         this.currentThreadDisplay.textContent = '';
         this.messageInput.disabled = true;
         this.sendBtn.disabled = true;
+        this.startConversationBtn.disabled = false;
     }
 }
 

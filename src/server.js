@@ -68,9 +68,6 @@ io.on('connection', (socket) => {
         socket.emit('agents-updated', agents);
       });
       
-      sessionManager.on('threads-updated', (threads) => {
-        socket.emit('threads-updated', threads);
-      });
       
       sessionManager.on('message-received', (message) => {
         socket.emit('message-received', message);
@@ -97,24 +94,17 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Handle thread creation
-  socket.on('create-thread', (data) => {
-    const sessionManager = sessions.get(socket.id);
-    if (sessionManager) {
-      sessionManager.createThread(data.name, data.participants);
-    }
-  });
 
   // Handle direct messages to agents
   socket.on('send-message', (data) => {
+    console.log('Received send-message event:', data);
     const sessionManager = sessions.get(socket.id);
     if (sessionManager) {
-      if (data.createThread || data.threadId === 'new') {
-        // Try to start conversation directly with agents
-        sessionManager.sendDirectMessage(data.content);
-      } else {
-        sessionManager.sendMessage(data.threadId, data.content);
-      }
+      console.log('SessionManager found, sending direct message');
+      // Send all messages directly to agents
+      sessionManager.sendDirectMessage(data.content);
+    } else {
+      console.log('No SessionManager found for socket:', socket.id);
     }
   });
   
