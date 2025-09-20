@@ -273,6 +273,22 @@ class SessionManager extends EventEmitter {
     }
   }
 
+  createThread(name, participants) {
+    if (!this.connected || !this.ws) {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    const message = {
+      type: 'create_thread',
+      name: name,
+      participants: participants
+    };
+
+    console.log('Creating thread:', message);
+    this.ws.send(JSON.stringify(message));
+  }
+
   sendMessage(threadId, content) {
     if (!this.connected || !this.ws) {
       console.error('WebSocket not connected');
@@ -316,6 +332,23 @@ class SessionManager extends EventEmitter {
       result: result
     };
 
+    this.ws.send(JSON.stringify(message));
+  }
+
+  sendDirectMessage(content) {
+    if (!this.connected || !this.ws) {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    // Try sending a direct message that might trigger thread creation
+    const message = {
+      type: 'user_message',
+      content: content,
+      role: 'user'
+    };
+
+    console.log('Sending direct message:', message);
     this.ws.send(JSON.stringify(message));
   }
 

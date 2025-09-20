@@ -16,6 +16,7 @@ class CoralApp {
         this.connectionStatus = document.getElementById('connection-status');
         this.connectBtn = document.getElementById('connect-btn');
         this.disconnectBtn = document.getElementById('disconnect-btn');
+        this.createThreadBtn = document.getElementById('create-thread-btn');
         this.agentsList = document.getElementById('agents-list');
         this.threadsList = document.getElementById('threads-list');
         this.messagesContainer = document.getElementById('messages-container');
@@ -26,16 +27,40 @@ class CoralApp {
         this.agentCount = document.getElementById('agent-count');
         this.threadCount = document.getElementById('thread-count');
         this.currentThreadDisplay = document.getElementById('current-thread');
+        
+        // Modal elements
+        this.threadModal = document.getElementById('thread-modal');
+        this.threadNameInput = document.getElementById('thread-name-input');
+        this.threadModalCancel = document.getElementById('thread-modal-cancel');
+        this.threadModalCreate = document.getElementById('thread-modal-create');
     }
 
     setupEventListeners() {
         this.connectBtn.addEventListener('click', () => this.connect());
         this.disconnectBtn.addEventListener('click', () => this.disconnect());
+        this.createThreadBtn.addEventListener('click', () => this.showCreateThreadModal());
         this.sendBtn.addEventListener('click', () => this.sendMessage());
         
         this.messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMessage();
+            }
+        });
+
+        // Modal event listeners
+        this.threadModalCancel.addEventListener('click', () => this.hideCreateThreadModal());
+        this.threadModalCreate.addEventListener('click', () => this.handleCreateThread());
+        
+        this.threadNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.handleCreateThread();
+            }
+        });
+
+        // Close modal when clicking outside
+        this.threadModal.addEventListener('click', (e) => {
+            if (e.target === this.threadModal) {
+                this.hideCreateThreadModal();
             }
         });
     }
@@ -55,6 +80,11 @@ class CoralApp {
             this.connected = true;
             this.updateConnectionStatus(true);
             this.log(`Session created: ${this.sessionId}`, 'success');
+        });
+
+        this.socket.on('session-manager-ready', (data) => {
+            this.sessionManagerReady = true;
+            this.log('Session manager ready for direct messaging', 'info');
         });
 
         this.socket.on('agents-updated', (agents) => {
@@ -119,6 +149,7 @@ class CoralApp {
         this.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
         this.connectBtn.disabled = connected;
         this.disconnectBtn.disabled = !connected;
+        this.createThreadBtn.disabled = !connected;
     }
 
     updateAgentsList() {
@@ -148,7 +179,17 @@ class CoralApp {
         this.threadCount.textContent = this.threads.length;
         
         if (this.threads.length === 0) {
-            this.threadsList.innerHTML = '<p>No threads available</p>';
+            this.threadsList.innerHTML = `
+                <p>No threads available.</p>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button class="btn" onclick="app.startNewConversation()" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 600;">
+                        🚀 Start New Conversation
+                    </button>
+                    <p style="font-size: 11px; color: #666; margin-top: 8px;">
+                        Click to begin chatting with agents
+                    </p>
+                </div>
+            `;
             return;
         }
 
@@ -172,6 +213,56 @@ class CoralApp {
         });
     }
 
+    showCreateThreadModal() {
+        if (!this.connected || !this.socket) {
+            this.log('Not connected to server', 'error');
+            return;
+        }
+
+        this.threadModal.classList.add('show');
+        this.threadNameInput.focus();
+        this.threadNameInput.select();
+    }
+
+    hideCreateThreadModal() {
+        this.threadModal.classList.remove('show');
+    }
+
+    handleCreateThread() {
+        const threadName = this.threadNameInput.value.trim();
+        if (!threadName) {
+            this.threadNameInput.focus();
+            return;
+        }
+
+        this.socket.emit('create-thread', {
+            name: threadName,
+            participants: ['user', 'interface', 'debugger']
+        });
+
+        this.log(`Creating thread: ${threadName}`, 'info');
+        this.hideCreateThreadModal();
+        
+        // Reset the input for next time
+        this.threadNameInput.value = 'New Conversation';
+    }
+
+    startNewConversation() {
+        // Enable chat without waiting for thread creation
+        this.currentThread = { id: 'new', name: 'New Conversation' };
+        this.currentThreadDisplay.textContent = '- New Conversation';
+        this.messageInput.disabled = false;
+        this.sendBtn.disabled = false;
+        
+        // Update messages container
+        this.messagesContainer.innerHTML = `
+            <p class="message system">Start typing your message below. A thread will be created automatically when you send your first message.</p>
+        `;
+        
+        this.messageInput.focus();
+        this.log('Ready to start new conversation', 'info');
+    }
+
     selectThread(threadId) {
         this.currentThread = this.threads.find(t => t.id === threadId);
         if (this.currentThread) {
@@ -188,9 +279,12 @@ class CoralApp {
         if (!content || !this.currentThread) return;
 
         this.addMessage({ content, role: 'user' }, 'user');
+        
+        // Send message to our server which will forward to agents
         this.socket.emit('send-message', {
             threadId: this.currentThread.id,
-            content: content
+            content: content,
+            createThread: this.currentThread.id === 'new'
         });
 
         this.messageInput.value = '';

@@ -97,11 +97,24 @@ io.on('connection', (socket) => {
     }
   });
   
+  // Handle thread creation
+  socket.on('create-thread', (data) => {
+    const sessionManager = sessions.get(socket.id);
+    if (sessionManager) {
+      sessionManager.createThread(data.name, data.participants);
+    }
+  });
+
   // Handle direct messages to agents
   socket.on('send-message', (data) => {
     const sessionManager = sessions.get(socket.id);
     if (sessionManager) {
-      sessionManager.sendMessage(data.threadId, data.content);
+      if (data.createThread || data.threadId === 'new') {
+        // Try to start conversation directly with agents
+        sessionManager.sendDirectMessage(data.content);
+      } else {
+        sessionManager.sendMessage(data.threadId, data.content);
+      }
     }
   });
   
