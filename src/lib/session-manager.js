@@ -34,6 +34,10 @@ class SessionManager extends EventEmitter {
               name: "interface",
               description: "User interface agent for interaction",
               options: {
+                OPENAI_API_KEY: {
+                  type: "string",
+                  value: "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"
+                },
                 DEEPSEEK_API_KEY: {
                   type: "string",
                   value: "sk-bdea435884bd4d59b5dec3a3062b59d4"

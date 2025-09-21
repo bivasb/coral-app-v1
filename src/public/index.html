@@ -48,10 +48,48 @@
             background: #f44336;
         }
 
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .header-left {
+            flex: 1;
+        }
+        
+        .header-right {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 15px;
+            max-width: 500px;
+        }
+        
+        .agents-panel-header {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 250px;
+        }
+        
+        .panel-header-small {
+            background: #2196F3;
+            color: white;
+            padding: 10px 15px;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .agents-list-header {
+            padding: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
         .main-content {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
+            display: block;
         }
 
         .panel {
@@ -199,7 +237,26 @@
         .controls {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            align-self: flex-start;
+        }
+        
+        .logs-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .log-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .log-content {
+            height: 200px;
+            overflow-y: auto;
+            padding: 15px;
         }
 
         .log-entry {
@@ -218,37 +275,37 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>
-                <span id="connection-status" class="status-indicator status-disconnected"></span>
-                Coral Agent Interface
-            </h1>
-            <p>Connect and interact with Coral Protocol agents</p>
-            
-            <div class="controls">
-                <button id="connect-btn" class="btn">Connect to Session</button>
-                <button id="disconnect-btn" class="btn" disabled>Disconnect</button>
+            <div class="header-left">
+                <h1>
+                    <span id="connection-status" class="status-indicator status-disconnected"></span>
+                    Coral Agent Interface
+                </h1>
+                <p>Connect and interact with Coral Protocol agents</p>
             </div>
-        </div>
-
-        <div class="main-content">
-            <!-- Left Panel: Agents and Threads -->
-            <div class="left-panel">
-                <!-- Agents Panel -->
-                <div class="panel">
-                    <div class="panel-header">
+            
+            <div class="header-right">
+                <div class="controls">
+                    <button id="connect-btn" class="btn">Connect to Session</button>
+                    <button id="disconnect-btn" class="btn" disabled>Disconnect</button>
+                </div>
+                
+                <!-- Agents Panel moved to header -->
+                <div class="agents-panel-header">
+                    <div class="panel-header-small">
                         Agents (<span id="agent-count">0</span>)
                     </div>
-                    <div class="panel-content">
+                    <div class="agents-list-header">
                         <div id="agents-list">
                             <p>No agents connected</p>
                         </div>
                     </div>
                 </div>
-
             </div>
+        </div>
 
-            <!-- Right Panel: Chat and Interactions -->
-            <div class="right-panel">
+        <div class="main-content">
+            <!-- Chat Panel -->
+            <div class="chat-panel">
                 <!-- Agent Questions -->
                 <div id="questions-container"></div>
 
@@ -275,19 +332,20 @@
                     </div>
                 </div>
 
-                <!-- Activity Log -->
-                <div class="panel" style="margin-top: 20px;">
-                    <div class="panel-header">Activity Log</div>
-                    <div class="panel-content" style="max-height: 200px; overflow-y: auto;">
-                        <div id="activity-log"></div>
+                <!-- Logs Panel Side by Side -->
+                <div class="logs-container" style="margin-top: 20px;">
+                    <div class="log-panel">
+                        <div class="panel-header">Activity Log</div>
+                        <div class="log-content">
+                            <div id="activity-log"></div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Agent Log -->
-                <div class="panel" style="margin-top: 20px;">
-                    <div class="panel-header">Agent Log</div>
-                    <div class="panel-content" style="max-height: 200px; overflow-y: auto;">
-                        <div id="agent-log"></div>
+                    
+                    <div class="log-panel">
+                        <div class="panel-header">Agent Log</div>
+                        <div class="log-content">
+                            <div id="agent-log"></div>
+                        </div>
                     </div>
                 </div>
             </div>
